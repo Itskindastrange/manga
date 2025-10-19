@@ -162,10 +162,10 @@ async def health_check():
 async def colorize_manga(
     file: UploadFile = File(..., description="Black and white manga image to colorize"),
     user_id: str = "anonymous",
-    model_id: str = "TencentARC/ColorFlow"
+    model_id: str = "piddnad/DDColor"
 ):
     """
-    Colorize a black and white manga page using Hugging Face Inference API.
+    Colorize a black and white manga page using Hugging Face Inference API with DDColor model.
     """
     logger.info(f"Received colorization request for file: {file.filename}")
     
@@ -199,8 +199,8 @@ async def colorize_manga(
             logger.info(f"Converting image from {image.mode} to RGB")
             image = image.convert("RGB")
         
-        # Preprocess image
-        image = preprocess_image(image)
+        # Preprocess image - DDColor works best with smaller images
+        image = preprocess_image(image, max_dimension=512)
         
         # Convert original to base64 for storage
         original_base64 = image_to_base64(image)
@@ -210,25 +210,32 @@ async def colorize_manga(
         image.save(img_byte_arr, format='PNG', quality=95)
         img_byte_arr.seek(0)
         
-        # Call Hugging Face Inference API
+        # Call Hugging Face Inference API with DDColor
         try:
             logger.info(f"Calling Inference API with model: {model_id}")
             colorized_image = hf_client.image_to_image(
-                img_byte_arr.getvalue(),
+                image=img_byte_arr.getvalue(),
                 model=model_id
             )
             logger.info("Successfully received colorized image from API")
         except Exception as api_error:
             logger.error(f"Inference API error: {str(api_error)}")
-            if "rate limit" in str(api_error).lower():
+            error_str = str(api_error).lower()
+            
+            if "rate limit" in error_str or "429" in error_str:
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                     detail="API rate limit exceeded. Please try again later."
                 )
-            elif "not found" in str(api_error).lower():
+            elif "not found" in error_str or "404" in error_str:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Model {model_id} not found or not available"
+                )
+            elif "model is currently loading" in error_str:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Model is loading. Please try again in a few moments."
                 )
             else:
                 raise HTTPException(
