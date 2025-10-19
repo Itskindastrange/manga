@@ -65,7 +65,7 @@ export default function HomeScreen() {
         name: 'manga.jpg',
       } as any);
       formData.append('user_id', user?.uid || 'anonymous');
-      formData.append('model_id', 'TencentARC/ColorFlow');
+      formData.append('model_id', 'piddnad/DDColor');
 
       // Call API
       const response = await axios.post(
