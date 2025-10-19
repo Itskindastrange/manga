@@ -162,7 +162,7 @@ async def health_check():
 async def colorize_manga(
     file: UploadFile = File(..., description="Black and white manga image to colorize"),
     user_id: str = "anonymous",
-    model_id: str = "piddnad/DDColor"
+    model_id: str = "hakurei/waifu-diffusion-v1-4"
 ):
     """
     Colorize a black and white manga page using Hugging Face Inference API with DDColor model.
